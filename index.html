@@ -31,8 +31,11 @@
   header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 20px 0; position: sticky; top: 0; z-index: 100; }
   .header-top { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; }
   h1 { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; color: var(--accent); letter-spacing: 2px; }
-  nav { display: flex; gap: 0; width: 100%; overflow: hidden; }
-  nav button { background: none; border: none; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 0.55rem; padding: 8px 0; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; text-transform: uppercase; flex: 1; min-width: 0; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  nav { display: flex; gap: 0; width: 100%; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  nav::-webkit-scrollbar { display: none; }
+  nav button { background: none; border: none; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 0.65rem; padding: 8px 14px; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; text-transform: uppercase; flex: 0 0 auto; text-align: center; white-space: nowrap; }
+  .nav-scroll-wrap { position: relative; }
+  .nav-scroll-wrap::after { content: ''; position: absolute; right: 0; top: 0; bottom: 4px; width: 32px; background: linear-gradient(to right, transparent, var(--surface)); pointer-events: none; z-index: 1; }
   nav button.active-A    { color: var(--accent);       border-bottom-color: var(--accent); }
   nav button.active-B    { color: var(--accent2);      border-bottom-color: var(--accent2); }
   nav button.active-C    { color: var(--accent3);      border-bottom-color: var(--accent3); }
@@ -338,7 +341,9 @@
     <h1>PEAKLOG</h1>
     <span style="font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--muted);letter-spacing:1px;align-self:flex-end;padding-bottom:3px">v1.2.0</span>
   </div>
-  <nav id="main-nav"></nav>
+  <div class="nav-scroll-wrap">
+    <nav id="main-nav"></nav>
+  </div>
 </header>
 
 <!-- Bannière mise à jour -->
@@ -474,15 +479,24 @@
   <div id="cf-content"></div>
 </div>
 
+<!-- MODALE DATE WOD -->
+<div class="modal-overlay" id="wod-date-modal">
+  <div class="modal" style="max-width:340px">
+    <h3 id="wod-date-modal-title" style="margin-bottom:8px">DATE</h3>
+    <p style="font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--muted);margin-bottom:16px">Sélectionne la date de la performance</p>
+    <input type="date" id="wod-date-input" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Mono',monospace;font-size:0.9rem;padding:10px 14px;width:100%;outline:none;margin-bottom:20px" onfocus="this.style.borderColor='#ff4d4d'" onblur="this.style.borderColor='var(--border)'">
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeWodModal()">ANNULER</button>
+      <button class="btn-primary" style="background:#ff4d4d" onclick="confirmWodDate()">SUIVANT →</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODALE LOG WOD -->
 <div class="modal-overlay" id="wod-modal">
   <div class="modal" style="max-width:360px">
     <h3 id="wod-modal-title">LOG WOD</h3>
     <p id="wod-modal-desc" style="font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--muted);margin-bottom:16px;line-height:1.5"></p>
-    <div style="margin-bottom:12px">
-      <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--muted);text-transform:uppercase;margin-bottom:6px">Date</div>
-      <input type="date" id="wod-date-input" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Mono',monospace;font-size:0.9rem;padding:10px 14px;width:100%;outline:none" onfocus="this.style.borderColor='#ff4d4d'" onblur="this.style.borderColor='var(--border)'">
-    </div>
     <div id="wod-modal-score-field" style="margin-bottom:12px">
       <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--muted);text-transform:uppercase;margin-bottom:6px" id="wod-modal-score-label">Score</div>
       <input type="text" id="wod-score-input" placeholder="mm:ss ou nombre de reps" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Mono',monospace;font-size:1rem;padding:10px 14px;width:100%;outline:none;text-transform:uppercase" onfocus="this.style.borderColor='#ff4d4d'" onblur="this.style.borderColor='var(--border)'">
@@ -1971,6 +1985,24 @@ function openWodModal(wodId) {
   const wod = [...WODS.girls, ...WODS.heroes, ...WODS.benchmarks].find(w => w.id === wodId);
   if (!wod) return;
   currentWodId = wodId;
+
+  // Pré-remplir la date à aujourd'hui
+  const now = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  document.getElementById('wod-date-input').value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+  document.getElementById('wod-date-modal-title').textContent = wod.name;
+
+  // Ouvrir la modale date en premier
+  document.getElementById('wod-date-modal').classList.add('show');
+}
+
+function confirmWodDate() {
+  // Fermer modale date, ouvrir modale saisie
+  document.getElementById('wod-date-modal').classList.remove('show');
+
+  const wod = [...WODS.girls, ...WODS.heroes, ...WODS.benchmarks].find(w => w.id === currentWodId);
+  if (!wod) return;
+
   document.getElementById('wod-modal-title').textContent = wod.name;
   document.getElementById('wod-modal-desc').textContent = wod.type;
   const scoreLabel = wod.scoreType === 'time' ? 'Temps (mm:ss)' : wod.scoreType === 'kg' ? 'Charge (kg)' : 'Score (reps/rounds)';
@@ -1979,14 +2011,11 @@ function openWodModal(wodId) {
   document.getElementById('wod-score-input').value = '';
   document.getElementById('wod-comment-input').value = '';
   document.getElementById('wod-rx-toggle').checked = true;
-  // Date par défaut = aujourd'hui
-  const now = new Date();
-  const pad = n => String(n).padStart(2,'0');
-  document.getElementById('wod-date-input').value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
   document.getElementById('wod-modal').classList.add('show');
 }
 
 function closeWodModal() {
+  document.getElementById('wod-date-modal').classList.remove('show');
   document.getElementById('wod-modal').classList.remove('show');
   currentWodId = null;
 }
